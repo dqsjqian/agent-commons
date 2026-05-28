@@ -1,0 +1,167 @@
+# Agent Commons
+
+> A protocol that lets any sufficiently intelligent AI agent join your shared memory by simply reading one file.
+
+**English** | [中文](README_CN.md)
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Status](https://img.shields.io/badge/status-MVP-blue)]()
+[![Protocol](https://img.shields.io/badge/protocol-v1.0-green)]()
+
+---
+
+**You probably switch between multiple AI agents every day** — Claude Code, Cursor, CodeBuddy, WorkBuddy, OpenClaw, Aider, GitHub Copilot Chat… and every one of them is an isolated island. Each one has its own memory of you, none of them know what the other learned. You teach the same preferences over and over.
+
+**Agent Commons fixes that.** It's a tiny **protocol** — not a framework, not a service, not even a library — that lets multiple AI agents on your machine share a single source of truth via plain Markdown files and Unix symlinks.
+
+---
+
+## The 30-second pitch
+
+```
+~/.agent-commons/                ← One central directory on your machine
+├── identity/                    ← Who you are (profile, routine)
+├── rules/                       ← Hard rules every agent must obey
+├── toolchain/                   ← Tools, paths, configs
+├── projects/                    ← What you're working on
+├── log/daily/                   ← Per-agent daily logs (no write conflicts)
+├── handoff/                     ← Cross-agent inbox + shared state
+├── skills/                      ← The protocol skeleton (this repo's content)
+└── registry.json                ← Which agents have joined
+```
+
+Every joined agent has a symlink:
+
+```bash
+~/.<your-agent>/skills/agent-commons → ~/.agent-commons/skills/
+```
+
+That's it. **No daemon. No server. No npm install. No third-party runtime. Pure filesystem.**
+
+---
+
+## Why this exists (and why it's different)
+
+| Existing solution | What it does | The catch |
+|---|---|---|
+| ChatGPT Memory | Auto-remembers facts about you | Locked inside OpenAI |
+| Claude Projects | Project-scoped context | Anthropic only |
+| MemGPT / Letta | Long-term memory inside one agent | Doesn't span agents |
+| Mem0 | Cross-agent memory service | Needs server, REST API, vendor lock |
+| MCP | Tool/resource protocol | Not about memory |
+| **Agent Commons** | **Cross-vendor, local-first, plaintext, zero-deps** | **Requires the agent to be smart enough to read a file** |
+
+The differentiator: **we don't write adapters for each agent**. We write a single `SKILL.md` that any sufficiently intelligent LLM can read and self-onboard from. Agents that can't follow plain English instructions… don't get to join. That's the design.
+
+---
+
+## How a user makes any AI agent join
+
+Tell the agent, in any language, any phrasing:
+
+> "Read `~/.agent-commons/ONBOARDING.md` and join the Agent Commons system."
+
+That's the entire user-side workflow. No CLI to install, no configs to edit. The agent reads the file, follows the joining flow inside, and reports back.
+
+If the agent can't figure it out, **the agent isn't smart enough for your workflow** — and you'll know that, too. It's a built-in capability test.
+
+---
+
+## What the protocol actually requires of a joined agent
+
+The protocol cleanly separates **one-time joining** from **ongoing capabilities**:
+
+- **`ONBOARDING.md`** (one-time): discover your runtime's user-extensible skills directory, install the skill (symlink → copy → readonly fallback), run a closed-loop trigger test to prove the runtime can actually invoke it, register in `registry.json`.
+- **`skills/SKILL.md`** (recurring): read shared identity / rules / current focus; check inbox / send messages; append daily logs; refresh `last_seen`. This is the runtime capability the joined agent carries forward.
+
+See [`ONBOARDING.md`](ONBOARDING.md) for the joining flow.
+See [`skills/SKILL.md`](skills/SKILL.md) for the runtime capability spec.
+See [`SPEC.md`](SPEC.md) for the full normative specification.
+See [`skills/manifest.json`](skills/manifest.json) for the machine-readable spec.
+
+---
+
+## Single source of truth — automatic protocol updates
+
+Each joined agent's `~/.<agent>/skills/agent-commons/` is a **symlink** back to the central `~/.agent-commons/skills/`. When this project ships a protocol update, you update the central dir; **every agent on the user's machine sees the new version on its next session start**. No push notifications, no version checks, no hash comparison. Just filesystem semantics doing what filesystem semantics do.
+
+User-owned files (`identity/`, `rules/`, `toolchain/`, etc.) are **never overwritten by upstream** — they live next to but outside the symlinked `skills/`.
+
+---
+
+## Install (for users)
+
+### macOS / Linux / WSL / Git Bash
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/dqsjqian/agent-commons/main/install.sh | bash
+```
+
+### Windows (PowerShell)
+
+```powershell
+iwr -useb https://raw.githubusercontent.com/dqsjqian/agent-commons/main/install.ps1 | iex
+```
+
+The installer does exactly **one** thing: bootstrap the central directory at `~/.agent-commons/` (or `%USERPROFILE%\.agent-commons\`) with seed files, then print a bilingual one-liner you can paste into any AI agent. **It does not touch any agent's home directory.** Agents install themselves — that's the protocol.
+
+### Manual install
+
+```bash
+git clone https://github.com/dqsjqian/agent-commons ~/.agent-commons
+```
+
+Then tell your agent:
+
+> "Read `~/.agent-commons/ONBOARDING.md` and join Agent Commons."
+
+The agent will figure out how to integrate with itself (symlink, copy, or read-only fallback — see ONBOARDING.md).
+
+(Windows users: replace `~` with `$HOME` in PowerShell, and use `New-Item -ItemType SymbolicLink` instead of `ln -s`.)
+
+Then talk to your agent.
+
+---
+
+## Platform support
+
+| OS / Shell | Status |
+|---|---|
+| macOS | ✅ first-class |
+| Linux | ✅ first-class (any POSIX shell) |
+| Windows + PowerShell 5.1+ | ✅ first-class (Dev Mode or Admin required for symlinks) |
+| Windows + WSL / Git Bash | ✅ works (set `MSYS=winsymlinks:nativestrict` for Git Bash) |
+| Windows + cmd.exe | ❌ not supported (use PowerShell) |
+
+---
+
+## Project status & philosophy
+
+**Phase 1 (current): Protocol + reference content.** This repo ships the directory skeleton, `SKILL.md`, `manifest.json`, and an install script. **Less than 200 lines of shell.** The README is the product.
+
+**Phase 2 (later, if interest): Optional CLI** (`ac` command) for `init / link / status / append / doctor`. Single-file Python, stdlib only.
+
+**Phase 3 (much later): Adapters directory.** Community-contributed integration guides for specific agents.
+
+We are deliberately **not** building:
+- a daemon
+- a Python/Node package on pip/npm
+- a CRDT sync engine
+- a cloud service
+- a chat UI
+
+This project is a **convention**, not software. Convention beats configuration. Filesystem beats database. Symlinks beat sync logic.
+
+---
+
+## License
+
+MIT. See [LICENSE](LICENSE).
+
+## Author
+
+[@dqsjqian](https://github.com/dqsjqian) · also creator of [soul-archive](https://github.com/dqsjqian/soul-archive) and [ai-eight-creed](https://github.com/dqsjqian/ai-eight-creed).
+
+---
+
+> *Make your AI agents finally stop forgetting each other.*

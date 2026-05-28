@@ -1,0 +1,116 @@
+{
+  "$schema": "https://github.com/dqsjqian/agent-commons/raw/main/spec/manifest.schema.json",
+  "name": "agent-commons",
+  "protocol_version": "1.0",
+  "spec_url": "https://github.com/dqsjqian/agent-commons/blob/main/SPEC.md",
+  "onboarding_url": "https://github.com/dqsjqian/agent-commons/blob/main/ONBOARDING.md",
+  "skill_url": "https://github.com/dqsjqian/agent-commons/blob/main/skills/SKILL.md",
+  "central_dir": "~/.agent-commons/",
+  "files": {
+    "onboarding_entry": "ONBOARDING.md",
+    "skill_entry": "skills/SKILL.md",
+    "manifest": "skills/manifest.json",
+    "identity_profile": "identity/profile.md",
+    "identity_routine": "identity/ROUTINE.md",
+    "rules_universal": "rules/universal.md",
+    "rules_public_repo": "rules/public-repo.md",
+    "rules_file_cleanup": "rules/file-cleanup.md",
+    "rules_safety": "rules/safety.md",
+    "toolchain_paths": "toolchain/paths.md",
+    "toolchain_github": "toolchain/github.md",
+    "toolchain_publishing": "toolchain/publishing.md",
+    "projects_active": "projects/active.md",
+    "registry": "registry.json",
+    "shared_state": "handoff/shared-state/current-focus.md",
+    "daily_log_pattern": "log/daily/{YYYY-MM-DD}-{agent-name}.md",
+    "decision_pattern": "log/decisions/{YYYY-MM-DD}-{title}.md",
+    "inbox_pattern": "handoff/inbox/from-{src}-to-{dst}-{topic}.md"
+  },
+  "lifecycle": {
+    "_note": "Onboarding (one-time) and runtime (recurring) are deliberately decoupled. Agents read ONBOARDING.md exactly once when joining; afterwards the runtime SKILL.md handles all ongoing operations.",
+    "onboarding": {
+      "ref": "ONBOARDING.md",
+      "frequency": "once per agent (or after major protocol-version bump)",
+      "trigger": "user says 'join Agent Commons' / 'read ~/.agent-commons/ONBOARDING.md' / equivalent",
+      "summary": "Discover user-extensible skills dir → install (symlink → copy → readonly) → closed-loop trigger test → register in registry.json"
+    },
+    "runtime": {
+      "ref": "skills/SKILL.md",
+      "frequency": "every relevant turn for an already-joined agent",
+      "trigger": "any operation requiring shared identity, rules, current-focus, inbox, daily log, or handoff",
+      "summary": "Read shared identity/rules; read/update current-focus; check inbox / send messages; append daily log; refresh last_seen"
+    }
+  },
+  "actions": {
+    "onboard": {
+      "summary": "One-time joining flow. The agent MUST install into its OWN user-extensible / 'custom skills' directory (NOT another agent's directory, NOT a built-in/whitelisted tier where files would land but never trigger). After install, MUST run a closed-loop trigger test in its own runtime; on failure, walk down symlink → copy → readonly autonomously, retesting after each change; only after exhausting all three tiers may the agent deliver an honest 'cannot fully join' report. 'Files on disk' is not success; 'runtime can trigger this skill' is success.",
+      "ref": "ONBOARDING.md"
+    },
+    "log_daily": {
+      "summary": "Append Markdown note to log/daily/YYYY-MM-DD-<agent>.md",
+      "write_mode": "append",
+      "per_agent_file": true
+    },
+    "update_rules": {
+      "summary": "Edit rules/*.md or toolchain/*.md with local-replace, never Write/overwrite",
+      "write_mode": "edit_in_place"
+    },
+    "update_shared_state": {
+      "summary": "Edit handoff/shared-state/current-focus.md to reflect current task",
+      "write_mode": "edit_in_place"
+    },
+    "send_message": {
+      "summary": "Write handoff/inbox/from-<src>-to-<dst>-<topic>.md",
+      "write_mode": "create_new"
+    },
+    "register": {
+      "summary": "Update your entry in registry.json (Edit, not Write); include install_tier, install_verified, skills_root, protocol_version (the version you joined under, copied from this manifest at join time)",
+      "write_mode": "edit_in_place"
+    },
+    "refresh_last_seen": {
+      "summary": "Once per session, Edit your registry.json entry to update last_seen",
+      "write_mode": "edit_in_place"
+    },
+    "update_install": {
+      "summary": "Tier 2 (copy) ONLY: mirror-resync local snapshot from central (rsync --delete / Robocopy /MIR / staged temp-dir + atomic swap). Naive 'cp -R' is a protocol violation — it leaves ghost files for upstream deletes/renames. After resync, re-run the closed-loop trigger test (see ONBOARDING.md Step 4.B). On a major-version-bump (manifest protocol_version major > registered protocol_version major), redirect the agent to re-execute ONBOARDING.md instead.",
+      "write_mode": "mirror"
+    }
+  },
+  "install_tiers": [
+    {
+      "_precondition": "Defined in ONBOARDING.md Step 2: the agent MUST locate its OWN user-extensible skills directory (the path the runtime is allowed to load third-party skills from — sometimes called 'Custom Skills', 'User Skills', or 'Plugins'). Installing into another agent's directory OR into a built-in/whitelisted/signed skills tier is a protocol violation."
+    },
+    {
+      "_postcondition": "Defined in ONBOARDING.md Step 4: after choosing a tier and installing, the agent MUST run a closed-loop trigger test (list / describe / invoke the skill in its own runtime) and ONLY treat the install as complete when the runtime confirms it can trigger the skill. Tier downgrade ladder symlink → copy → readonly is mandatory if the test fails."
+    },
+    {
+      "tier": "symlink",
+      "preferred": true,
+      "description": "Agent creates symlink <its-own-user-extensible-skills-dir>/agent-commons -> ~/.agent-commons/skills/. Auto-updates with central."
+    },
+    {
+      "tier": "copy",
+      "fallback": true,
+      "description": "Agent copies ~/.agent-commons/skills/* into its OWN user-extensible skill dir. Re-sync periodically (see ONBOARDING.md Step 6)."
+    },
+    {
+      "tier": "readonly",
+      "last_resort": true,
+      "description": "Agent reads ~/.agent-commons/skills/SKILL.md directly each session, no local install. Won't appear in runtime's skill list but can still follow the protocol manually."
+    }
+  ],
+  "principles": [
+    "Local-first: all data on the user's machine, no servers",
+    "Plaintext only: Markdown + JSON, readable and editable by hand",
+    "Per-agent file isolation in writes (avoid conflicts at the source)",
+    "Append-only logs, edit-in-place state",
+    "Onboarding and runtime are decoupled — onboarding is a one-time action, the skill is an ongoing capability",
+    "Convention over framework: ≤200 LOC of code; the README is the product",
+    "Self-onboarding: agents install themselves, the protocol does not push code to them",
+    "Triggerable = done: install is only complete when the runtime can actually invoke the skill"
+  ],
+  "supported_agents": [
+    "Any AI agent that can read filesystem and follow natural-language instructions. Symlink support is preferred but not required (copy and readonly fallbacks exist)."
+  ],
+  "license": "MIT"
+}

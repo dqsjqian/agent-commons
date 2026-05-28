@@ -11,7 +11,7 @@
 # This script bootstraps ~/.agent-commons/ and prints the agent-onboarding
 # message. It does NOT touch any AI agent's home directory — agents join
 # the system on their own by reading ONBOARDING.md (one-time joining flow);
-# afterwards they use skills/SKILL.md as their runtime capability.
+# afterwards they use skills/agent-commons/SKILL.md as their runtime capability.
 #
 # Idempotent: re-running upgrades the protocol skeleton without touching your data.
 
@@ -28,12 +28,18 @@ REPO_RAW_URL="${AGENT_COMMONS_REPO:-https://raw.githubusercontent.com/dqsjqian/a
   fi
 
   # Directory skeleton
-  mkdir -p "$CENTRAL"/{skills,identity,rules,toolchain,projects,log/daily,log/decisions,log/archive,handoff/inbox,handoff/archive,handoff/shared-state}
+  #   skills/<name>/        agent-loadable capabilities (this skill itself + future ones)
+  #   skills_data/<name>/   per-skill persistent data (private to the owning skill)
+  #   mcp/<server>/         shared MCP server configs / local implementations
+  #   plugins/<name>/       shared plugins (e.g. browser/editor extensions)
+  #   tools/<name>/         shared scripts / utilities (CLI helpers, dotfiles, etc.)
+  mkdir -p "$CENTRAL"/{skills/agent-commons,skills_data,mcp,plugins,tools,identity,rules,toolchain,projects,log/daily,log/decisions,log/archive,handoff/inbox,handoff/archive,handoff/shared-state}
 
   # Protocol skeleton (always overwrite — controlled by this project)
-  curl -fsSL "$REPO_RAW_URL/ONBOARDING.md"        -o "$CENTRAL/ONBOARDING.md"
-  curl -fsSL "$REPO_RAW_URL/skills/SKILL.md"      -o "$CENTRAL/skills/SKILL.md"
-  curl -fsSL "$REPO_RAW_URL/skills/manifest.json" -o "$CENTRAL/skills/manifest.json"
+  curl -fsSL "$REPO_RAW_URL/ONBOARDING.md"                         -o "$CENTRAL/ONBOARDING.md"
+  curl -fsSL "$REPO_RAW_URL/CONVENTIONS.md"                        -o "$CENTRAL/CONVENTIONS.md"
+  curl -fsSL "$REPO_RAW_URL/skills/agent-commons/SKILL.md"         -o "$CENTRAL/skills/agent-commons/SKILL.md"
+  curl -fsSL "$REPO_RAW_URL/skills/agent-commons/manifest.json"    -o "$CENTRAL/skills/agent-commons/manifest.json"
 
   # User-owned templates (only seed if missing — never overwrite your edits)
   seed_if_missing() {
@@ -72,7 +78,7 @@ EOF
   if [ ! -f "$CENTRAL/registry.json" ]; then
     cat > "$CENTRAL/registry.json" <<'EOF'
 {
-  "protocol_version": "1.0",
+  "protocol_version": "2.0",
   "agents": {}
 }
 EOF

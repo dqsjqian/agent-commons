@@ -1,9 +1,11 @@
 # Agent Commons Specification
 
-**Protocol version: 1.0**
+**Protocol version: 2.0**
 **Status: Draft**
 
 This document is the normative specification for Agent Commons. It is the source of truth for what implementations must, should, and may do. The keywords **MUST**, **SHOULD**, **MAY** follow [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119).
+
+> **Changes from 1.0 → 2.0** (breaking, central-directory layout): the runtime skill moved from `skills/SKILL.md` to `skills/agent-commons/SKILL.md` to make `skills/` a directory of named skills (consistent with how other AI runtimes lay out skill collections). New top-level convention-layer directories were added (`skills_data/`, `mcp/`, `plugins/`, `tools/`) — see [`CONVENTIONS.md`](CONVENTIONS.md). Agents joined under 1.x **MUST** re-onboard.
 
 ## 1. Goals
 
@@ -36,9 +38,18 @@ A user **MAY** override this via the environment variable `AGENT_COMMONS_HOME`, 
 
 ### 2.1 Top-level layout
 
+The central directory contains TWO layers, physically siblings but semantically distinct:
+
+#### Protocol layer (mandatory, **MUST** be present after install)
+
 ```
 ~/.agent-commons/
-├── skills/             ← protocol skeleton (controlled by this project)
+├── ONBOARDING.md       ← one-time joining flow (top-level for discoverability)
+├── CONVENTIONS.md      ← non-normative conventions (this section + extras)
+├── skills/
+│   └── agent-commons/  ← the runtime skill of this protocol itself
+│       ├── SKILL.md
+│       └── manifest.json
 ├── identity/           ← user-owned, who the user is
 ├── rules/              ← user-owned, mandatory behavior rules
 ├── toolchain/          ← user-owned, tool/path configs
@@ -54,12 +65,27 @@ A user **MAY** override this via the environment variable `AGENT_COMMONS_HOME`, 
 └── registry.json       ← list of joined agents
 ```
 
+#### Convention layer (optional, non-normative — see [`CONVENTIONS.md`](CONVENTIONS.md))
+
+```
+~/.agent-commons/
+├── skills/<name>/      ← additional shared skills beyond agent-commons itself
+├── skills_data/<name>/ ← per-skill persistent data (RECOMMENDED location for skills that need to persist user state)
+├── mcp/<server>/       ← shared MCP server configs / local implementations
+├── plugins/<name>/     ← shared plugins (browser/editor extensions, etc.)
+└── tools/<name>/       ← shared CLI scripts / utilities
+```
+
+Agent Commons **MUST NOT** read, write, validate, or interpret anything in the convention layer. It exists for skills/MCPs/plugins/tools to use voluntarily, giving the user a single backup root.
+
+Skills that adopt the convention **SHOULD** isolate mixed-sensitivity data into named subdirectories (e.g. `skills_data/<skill>/public/` vs `.../private/`) so the user can apply different sync policies.
+
 ## 3. File ownership and update authority
 
 ### 3.1 `skills/` — protocol-controlled
 
 - **Owner**: This project (Agent Commons maintainers).
-- **Distribution**: Each joined agent has a symlink `~/.<agent>/skills/agent-commons → ~/.agent-commons/skills/`. Agents read this on session start.
+- **Distribution**: Each joined agent has a symlink `~/.<agent>/skills/agent-commons → ~/.agent-commons/skills/agent-commons/`. Agents read this on session start.
 - **User MUST NOT** overwrite files here. Local edits will be overwritten on next protocol update.
 
 ### 3.2 `identity/`, `rules/`, `toolchain/`, `projects/` — user-controlled
@@ -95,9 +121,9 @@ A user **MAY** override this via the environment variable `AGENT_COMMONS_HOME`, 
 
 ### 3.7 `registry.json` — agent presence
 
-- **Format**: Single JSON object (see [`skills/manifest.json`](skills/manifest.json) for shape).
+- **Format**: Single JSON object (see [`skills/agent-commons/manifest.json`](skills/agent-commons/manifest.json) for shape).
 - **Update mode**: In-place edit. Agents **MUST** update only their own entry.
-- **Required fields per agent**: `joined_at` (ISO 8601), `home` (~/.<agent>/), `last_seen` (ISO 8601), `protocol_version` (the version the agent joined under, copied from `skills/manifest.json` at join time), `install_tier` (`symlink`|`copy`|`readonly`), `install_verified` (`skill_list`|`description_echo`|`live_invocation`|`none`), `skills_root` (the actual user-extensible skills dir the agent installed into).
+- **Required fields per agent**: `joined_at` (ISO 8601), `home` (~/.<agent>/), `last_seen` (ISO 8601), `protocol_version` (the version the agent joined under, copied from `skills/agent-commons/manifest.json` at join time; **MUST** be `"2.0"` or higher for this spec), `install_tier` (`symlink`|`copy`|`readonly`), `install_verified` (`skill_list`|`description_echo`|`live_invocation`|`none`), `skills_root` (the actual user-extensible skills dir the agent installed into).
 - **Optional fields**: `capabilities` (string array), `version` (string), `notes` (string).
 
 ## 4. Onboarding vs. runtime — two decoupled flows
@@ -121,7 +147,7 @@ The exact instructions are in [`ONBOARDING.md`](ONBOARDING.md). Agents **MUST** 
 
 ### 4.2 Runtime (recurring, every relevant turn)
 
-`~/.agent-commons/skills/SKILL.md` is the runtime skill of an already-joined agent. It exposes the ongoing capabilities:
+`~/.agent-commons/skills/agent-commons/SKILL.md` is the runtime skill of an already-joined agent. It exposes the ongoing capabilities:
 
 - Reading shared identity, rules, current focus.
 - Updating `handoff/shared-state/current-focus.md`.
@@ -129,7 +155,7 @@ The exact instructions are in [`ONBOARDING.md`](ONBOARDING.md). Agents **MUST** 
 - Appending daily logs to `log/daily/<date>-<agent>.md`.
 - Refreshing `last_seen` in `registry.json`.
 
-Agents **MUST** consider [`skills/SKILL.md`](skills/SKILL.md) authoritative for runtime operations.
+Agents **MUST** consider [`skills/agent-commons/SKILL.md`](skills/agent-commons/SKILL.md) authoritative for runtime operations.
 
 ### 4.3 Why decoupled
 
@@ -148,7 +174,7 @@ This specification follows [Semantic Versioning](https://semver.org/):
 - **Minor**: New capabilities (e.g., new top-level dirs, new optional fields) that are backward compatible.
 - **Patch**: Clarifications, typo fixes.
 
-The active version **MUST** be declared in `skills/SKILL.md` frontmatter and `skills/manifest.json`.
+The active version **MUST** be declared in `skills/agent-commons/SKILL.md` frontmatter and `skills/agent-commons/manifest.json`.
 
 ### 5.2 Update propagation per install tier
 
@@ -194,6 +220,6 @@ This protocol does **not** address:
 
 - Repository: https://github.com/dqsjqian/agent-commons
 - Onboarding (one-time): [`ONBOARDING.md`](ONBOARDING.md)
-- Runtime skill: [`skills/SKILL.md`](skills/SKILL.md)
-- Manifest: [`skills/manifest.json`](skills/manifest.json)
+- Runtime skill: [`skills/agent-commons/SKILL.md`](skills/agent-commons/SKILL.md)
+- Manifest: [`skills/agent-commons/manifest.json`](skills/agent-commons/manifest.json)
 - License: MIT

@@ -22,14 +22,14 @@ curl -fsSL https://raw.githubusercontent.com/dqsjqian/agent-commons/main/install
 
 # Or do it manually:
 mkdir -p <user-extensible-skills-dir>
-ln -sfn ~/.agent-commons/skills <user-extensible-skills-dir>/agent-commons
+ln -sfn ~/.agent-commons/skills/agent-commons <user-extensible-skills-dir>/agent-commons
 ```
 
 Then start a new session with the agent and say:
 
 > "Read `~/.agent-commons/ONBOARDING.md` and follow the joining flow."
 
-(Onboarding is one-time. After joining, the agent uses `~/.agent-commons/skills/SKILL.md` automatically as its runtime capability.)
+(Onboarding is one-time. After joining, the agent uses `~/.agent-commons/skills/agent-commons/SKILL.md` automatically as its runtime capability.)
 
 ## Verification
 

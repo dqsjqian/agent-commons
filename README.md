@@ -6,7 +6,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Status](https://img.shields.io/badge/status-MVP-blue)]()
-[![Protocol](https://img.shields.io/badge/protocol-v1.0-green)]()
+[![Protocol](https://img.shields.io/badge/protocol-v2.0-green)]()
 
 ---
 
@@ -20,20 +20,30 @@
 
 ```
 ~/.agent-commons/                ← One central directory on your machine
+│
+│  ─── Protocol layer (mandatory) ───
+├── ONBOARDING.md                ← One-time joining flow for new agents
+├── CONVENTIONS.md               ← Optional, non-normative conventions
 ├── identity/                    ← Who you are (profile, routine)
 ├── rules/                       ← Hard rules every agent must obey
 ├── toolchain/                   ← Tools, paths, configs
 ├── projects/                    ← What you're working on
 ├── log/daily/                   ← Per-agent daily logs (no write conflicts)
 ├── handoff/                     ← Cross-agent inbox + shared state
-├── skills/                      ← The protocol skeleton (this repo's content)
-└── registry.json                ← Which agents have joined
+├── skills/agent-commons/        ← Runtime skill of the protocol itself
+├── registry.json                ← Which agents have joined
+│
+│  ─── Convention layer (optional, recommended) ───
+├── skills_data/<skill>/         ← Per-skill persistent data (one backup root for all)
+├── mcp/<server>/                ← Shared MCP server configs
+├── plugins/<name>/              ← Shared plugins
+└── tools/<name>/                ← Shared CLI scripts/utilities
 ```
 
 Every joined agent has a symlink:
 
 ```bash
-~/.<your-agent>/skills/agent-commons → ~/.agent-commons/skills/
+~/.<your-agent>/skills/agent-commons → ~/.agent-commons/skills/agent-commons/
 ```
 
 That's it. **No daemon. No server. No npm install. No third-party runtime. Pure filesystem.**
@@ -72,19 +82,19 @@ If the agent can't figure it out, **the agent isn't smart enough for your workfl
 The protocol cleanly separates **one-time joining** from **ongoing capabilities**:
 
 - **`ONBOARDING.md`** (one-time): discover your runtime's user-extensible skills directory, install the skill (symlink → copy → readonly fallback), run a closed-loop trigger test to prove the runtime can actually invoke it, register in `registry.json`.
-- **`skills/SKILL.md`** (recurring): read shared identity / rules / current focus; check inbox / send messages; append daily logs; refresh `last_seen`. This is the runtime capability the joined agent carries forward.
+- **`skills/agent-commons/SKILL.md`** (recurring): read shared identity / rules / current focus; check inbox / send messages; append daily logs; refresh `last_seen`. This is the runtime capability the joined agent carries forward.
 
 See [`ONBOARDING.md`](ONBOARDING.md) for the joining flow.
-See [`skills/SKILL.md`](skills/SKILL.md) for the runtime capability spec.
+See [`skills/agent-commons/SKILL.md`](skills/agent-commons/SKILL.md) for the runtime capability spec.
 See [`SPEC.md`](SPEC.md) for the full normative specification.
 See [`CONVENTIONS.md`](CONVENTIONS.md) for optional, non-normative conventions (e.g. recommended skill data location at `~/.agent-commons/skills_data/`).
-See [`skills/manifest.json`](skills/manifest.json) for the machine-readable spec.
+See [`skills/agent-commons/manifest.json`](skills/agent-commons/manifest.json) for the machine-readable spec.
 
 ---
 
 ## Single source of truth — automatic protocol updates
 
-Each joined agent's `~/.<agent>/skills/agent-commons/` is a **symlink** back to the central `~/.agent-commons/skills/`. When this project ships a protocol update, you update the central dir; **every agent on the user's machine sees the new version on its next session start**. No push notifications, no version checks, no hash comparison. Just filesystem semantics doing what filesystem semantics do.
+Each joined agent's `~/.<agent>/skills/agent-commons/` is a **symlink** back to the central `~/.agent-commons/skills/agent-commons/`. When this project ships a protocol update, you update the central dir; **every agent on the user's machine sees the new version on its next session start**. No push notifications, no version checks, no hash comparison. Just filesystem semantics doing what filesystem semantics do.
 
 User-owned files (`identity/`, `rules/`, `toolchain/`, etc.) are **never overwritten by upstream** — they live next to but outside the symlinked `skills/`.
 

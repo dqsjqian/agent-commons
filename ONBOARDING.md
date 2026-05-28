@@ -18,7 +18,7 @@ This is the **one-time joining flow** for new agents. It tells you how to:
 6. Hand off to the runtime skill for daily use
 7. Stay current as the protocol evolves (update strategy)
 
-This file is **NOT** the runtime skill. The runtime skill (`~/.agent-commons/skills/SKILL.md`) is the thing your runtime loads to give you ongoing capabilities like reading shared identity, writing daily logs, and handoffs to other agents.
+This file is **NOT** the runtime skill. The runtime skill (`~/.agent-commons/skills/agent-commons/SKILL.md`) is the thing your runtime loads to give you ongoing capabilities like reading shared identity, writing daily logs, and handoffs to other agents.
 
 **Distinction matters**: onboarding is an **action you do once** (with periodic re-invocation only on major version bumps). The skill is a **capability you carry forward**. If you re-trigger this onboarding file every session, you'll waste cycles reinstalling things that are already installed. That is not the point.
 
@@ -130,27 +130,27 @@ Set `SKILLS_ROOT` to the user-extensible directory you discovered. The rest of S
 ```bash
 # POSIX:
 mkdir -p "$SKILLS_ROOT"
-ln -sfn ~/.agent-commons/skills "$SKILLS_ROOT/agent-commons"
+ln -sfn ~/.agent-commons/skills/agent-commons "$SKILLS_ROOT/agent-commons"
 ```
 ```powershell
 # Windows PowerShell (needs Developer Mode or Administrator):
 New-Item -ItemType Directory -Path $SKILLS_ROOT -Force | Out-Null
 New-Item -ItemType SymbolicLink -Path "$SKILLS_ROOT\agent-commons" `
-         -Target "$env:USERPROFILE\.agent-commons\skills" -Force | Out-Null
+         -Target "$env:USERPROFILE\.agent-commons\skills\agent-commons" -Force | Out-Null
 ```
 
 ### Tier 2 — Copy (fallback if symlinks fail or your runtime refuses to follow them)
 
 ```bash
 mkdir -p "$SKILLS_ROOT/agent-commons"
-cp -R ~/.agent-commons/skills/. "$SKILLS_ROOT/agent-commons/"
+cp -R ~/.agent-commons/skills/agent-commons/. "$SKILLS_ROOT/agent-commons/"
 ```
 
 You'll need to re-sync on each session start (or on demand). See Step 6 for the update protocol.
 
 ### Tier 3 — Read-only (last resort)
 
-If even copy fails (read-only skills dir, fully sandboxed runtime, no FS write), skip the local install. Just `cat ~/.agent-commons/skills/SKILL.md` at every conversation start. You won't appear in your own agent's skill list, but you can still follow the protocol.
+If even copy fails (read-only skills dir, fully sandboxed runtime, no FS write), skip the local install. Just `cat ~/.agent-commons/skills/agent-commons/SKILL.md` at every conversation start. You won't appear in your own agent's skill list, but you can still follow the protocol.
 
 ---
 
@@ -172,7 +172,7 @@ If file checks fail → install itself broke. Re-run Step 3.
 Invoke the skill **in your own runtime**. Use whichever signal your runtime supports:
 
 1. **Skill listing API.** Run your runtime's "list installed skills" / "list custom skills". Confirm `agent-commons` appears.
-2. **Description echo.** Many runtimes load the `description:` from the skill's frontmatter on discovery. Trigger discovery, then check whether the runtime's view of `agent-commons` shows the description from `~/.agent-commons/skills/SKILL.md`. If empty / a stub / "unknown" → not loaded.
+2. **Description echo.** Many runtimes load the `description:` from the skill's frontmatter on discovery. Trigger discovery, then check whether the runtime's view of `agent-commons` shows the description from `~/.agent-commons/skills/agent-commons/SKILL.md`. If empty / a stub / "unknown" → not loaded.
 3. **Live invocation.** Call the skill end-to-end. If your runtime supports a "Skill" / "tool" call that names the skill, that's the gold standard.
 
 Pick the strongest available signal. Document which one you used in your final acknowledgment.
@@ -231,13 +231,13 @@ Add or update your entry:
 
 ```json
 {
-  "protocol_version": "1.0",
+  "protocol_version": "2.0",
   "agents": {
     "<your-agent-name>": {
       "joined_at": "<ISO 8601 of first join>",
       "home": "~/.<your-agent-name>/",
       "last_seen": "<ISO 8601 now>",
-      "protocol_version": "<the protocol_version you just joined under, copied from ~/.agent-commons/skills/manifest.json>",
+      "protocol_version": "<the protocol_version you just joined under, copied from ~/.agent-commons/skills/agent-commons/manifest.json>",
       "install_tier": "symlink|copy|readonly",
       "install_verified": "skill_list|description_echo|live_invocation|none",
       "skills_root": "<the actual user-extensible skills dir you installed into>",
@@ -247,7 +247,7 @@ Add or update your entry:
 }
 ```
 
-The `protocol_version` field on your entry is what the runtime skill uses to detect major version drift (see `skills/SKILL.md` § Self-check). Don't omit it.
+The `protocol_version` field on your entry is what the runtime skill uses to detect major version drift (see `skills/agent-commons/SKILL.md` § Self-check). Don't omit it.
 
 If you can't write to registry.json (no FS permission) → log it and proceed. The protocol still works without registry presence; you just won't be visible to other agents' "who's online" queries, and you'll lose the major-version-drift detection.
 
@@ -255,7 +255,7 @@ If you can't write to registry.json (no FS permission) → log it and proceed. T
 
 ## Step 6 — Hand off to the runtime skill (you're done with onboarding)
 
-Onboarding is a one-time event. **From this turn onward, you do NOT re-read this file** in the normal course of operation. The runtime skill at `~/.agent-commons/skills/SKILL.md` carries all the day-to-day capabilities (reading shared identity, writing daily logs, handoffs).
+Onboarding is a one-time event. **From this turn onward, you do NOT re-read this file** in the normal course of operation. The runtime skill at `~/.agent-commons/skills/agent-commons/SKILL.md` carries all the day-to-day capabilities (reading shared identity, writing daily logs, handoffs).
 
 Your trigger conditions for the runtime skill are different — they're things like "I need the user's identity profile", "I should log this work as cross-agent visible", "I want to hand off to another agent". The runtime skill's frontmatter spells these out.
 
@@ -266,15 +266,51 @@ The only times you SHOULD come back to this onboarding file:
 
 ---
 
+## Step 6.5 — Where to put your stuff going forward (recommended convention)
+
+Now that you're joined, the central directory is your home base. Beyond the protocol files (identity, rules, handoff, log), it has **convention-layer subdirectories** that Agent Commons does NOT read or interpret, but that give the user a single backup root for everything you put there.
+
+**You are strongly encouraged to use these locations for any persistent state** instead of inventing your own private paths:
+
+| Need | Recommended location | When |
+|---|---|---|
+| **Per-skill persistent data** (caches, learned profiles, conversation logs, anything that should survive sessions) | `~/.agent-commons/skills_data/<skill-name>/` | Whenever a skill needs to write data |
+| **Shared MCP server configs / local implementations** | `~/.agent-commons/mcp/<server-name>/` | When you install an MCP that all joined agents should be able to use |
+| **Shared plugins** (browser/editor/IDE extensions) | `~/.agent-commons/plugins/<plugin-name>/` | When the plugin is agent-agnostic |
+| **Shared CLI scripts / tools** (helpers the user can run from any shell) | `~/.agent-commons/tools/<tool-name>/` | Cross-agent utilities |
+
+**Why this matters:**
+
+- The user backs up `~/.agent-commons/` once → everything moves with them.
+- New agents joining the protocol see the same shared data without each one reinventing storage.
+- Data written outside this tree is **invisible** to other joined agents and won't follow the user across machines.
+
+**Privacy layering for mixed-sensitivity data:**
+
+If a skill writes a mix of shareable + sensitive data, split into clearly named subdirectories:
+
+```
+~/.agent-commons/skills_data/<skill-name>/
+├── public/      ← safe to sync everywhere (preferences, profiles, settings)
+├── private/     ← sensitive — recommend .gitignore by default
+└── ...
+```
+
+See [`CONVENTIONS.md`](CONVENTIONS.md) (also at `~/.agent-commons/CONVENTIONS.md`) for the full convention spec.
+
+**This is non-normative** — the protocol still works if you ignore this section. But adopting it makes the user's life dramatically easier.
+
+---
+
 ## Step 7 — Update protocol (how to stay current as the central skill evolves)
 
-The central directory `~/.agent-commons/skills/` is the **single source of truth**. As the protocol evolves, files there will be **added, modified, removed, or renamed**. Your local install must stay in sync, or it will silently drift.
+The central directory `~/.agent-commons/skills/agent-commons/` is the **single source of truth**. As the protocol evolves, files there will be **added, modified, removed, or renamed**. Your local install must stay in sync, or it will silently drift.
 
 How you stay current depends on your install tier:
 
 ### Tier 1 — Symlink (zero work)
 
-Your `<SKILLS_ROOT>/agent-commons` points back to `~/.agent-commons/skills/`. Any change in the central dir is **instantly visible** to your runtime. No update step needed. Skip to Step 7.4 (post-update self-test).
+Your `<SKILLS_ROOT>/agent-commons` points back to `~/.agent-commons/skills/agent-commons/`. Any change in the central dir is **instantly visible** to your runtime. No update step needed. Skip to Step 7.4 (post-update self-test).
 
 ### Tier 2 — Copy (you MUST resync; default is broken)
 
@@ -286,8 +322,8 @@ Trigger a resync if **any** of these is true:
 
 - This is the **first invocation in a new session today** (cheap insurance against multi-day drift).
 - The user explicitly asked you to update Agent Commons.
-- You detect a `protocol_version` mismatch between `~/.agent-commons/skills/manifest.json` and your local snapshot's manifest.
-- A `git pull` / installer-rerun happened on the central dir since your last session (timestamp on `~/.agent-commons/skills/SKILL.md` is newer than your snapshot's).
+- You detect a `protocol_version` mismatch between `~/.agent-commons/skills/agent-commons/manifest.json` and your local snapshot's manifest.
+- A `git pull` / installer-rerun happened on the central dir since your last session (timestamp on `~/.agent-commons/skills/agent-commons/SKILL.md` is newer than your snapshot's).
 
 A simple "skip if same hash" check works fine — you don't need a daemon.
 
@@ -298,7 +334,7 @@ The operation is **mirror**, not copy. Pick one:
 **POSIX — `rsync` with `--delete` (preferred — atomic enough, fast)**
 
 ```bash
-rsync -a --delete ~/.agent-commons/skills/ "$SKILLS_ROOT/agent-commons/"
+rsync -a --delete ~/.agent-commons/skills/agent-commons/ "$SKILLS_ROOT/agent-commons/"
 # Note the trailing slash on the source — copies CONTENTS, not the dir itself.
 # --delete removes any files in dst that no longer exist in src (handles deletions/renames).
 ```
@@ -308,7 +344,7 @@ rsync -a --delete ~/.agent-commons/skills/ "$SKILLS_ROOT/agent-commons/"
 ```bash
 # Stage to a temp dir first so a network/disk failure mid-copy doesn't corrupt the live install.
 TMP="$(mktemp -d)"
-cp -R ~/.agent-commons/skills/. "$TMP/"
+cp -R ~/.agent-commons/skills/agent-commons/. "$TMP/"
 # Atomic-ish swap: rm old, mv new. (True atomicity needs same-FS.)
 rm -rf "$SKILLS_ROOT/agent-commons"
 mv "$TMP" "$SKILLS_ROOT/agent-commons"
@@ -317,7 +353,7 @@ mv "$TMP" "$SKILLS_ROOT/agent-commons"
 **Windows PowerShell — `Robocopy /MIR`**
 
 ```powershell
-robocopy "$env:USERPROFILE\.agent-commons\skills" `
+robocopy "$env:USERPROFILE\.agent-commons\skills\agent-commons" `
          "$SKILLS_ROOT\agent-commons" /MIR /NJH /NJS /NDL /NFL
 # /MIR = mirror: copy adds/changes AND deletes orphans in dst.
 ```
@@ -329,7 +365,7 @@ File added upstream → ✓ copied. File modified upstream → ✓ overwritten. 
 
 ### Tier 3 — Read-only (zero work)
 
-Each session you read directly from `~/.agent-commons/skills/SKILL.md`. Always live. No update step.
+Each session you read directly from `~/.agent-commons/skills/agent-commons/SKILL.md`. Always live. No update step.
 
 ### 7.4 — Post-update self-test (mandatory, even on Tier 1 / Tier 3)
 
@@ -345,12 +381,12 @@ If the post-update self-test fails on all tiers, deliver the **Step 4.D honest f
 
 ### 7.5 — Major version bump → full re-onboarding
 
-If you detect that `~/.agent-commons/skills/manifest.json` has a `protocol_version` whose **major** number is higher than what your registry entry recorded at join time (e.g. you joined under `1.x`, central is now `2.0`):
+If you detect that `~/.agent-commons/skills/agent-commons/manifest.json` has a `protocol_version` whose **major** number is higher than what your registry entry recorded at join time (e.g. you joined under `1.x`, central is now `2.0`):
 
 - **A minor or patch bump** (1.0 → 1.1, 1.1 → 1.1.3): just resync per the tier rules above. No re-onboarding needed.
 - **A major bump** (1.x → 2.0): the on-disk schema may have changed in incompatible ways. **Re-read this `ONBOARDING.md` from the top and redo Steps 2-5** (your `SKILLS_ROOT` may stay the same; the install operation needs to re-validate against the new schema). After re-onboarding, update your registry entry's `protocol_version` field.
 
-The runtime skill (`skills/SKILL.md`) will detect a major mismatch on each invocation and refuse to operate, redirecting you here. Don't try to soldier on with a stale install.
+The runtime skill (`skills/agent-commons/SKILL.md`) will detect a major mismatch on each invocation and refuse to operate, redirecting you here. Don't try to soldier on with a stale install.
 
 ### 7.6 — Failed update recovery
 
@@ -371,7 +407,7 @@ After Steps 1-5 are done **and the Step 4 trigger test passed**, tell the user:
 > **✅ Joined Agent Commons.**
 > tier: `symlink` | `copy` | `readonly` ・ install verified via: `skill_list` | `description_echo` | `live_invocation`
 > skills_root: `<path>`
-> Registered in registry.json. Going forward I'll trigger the runtime skill (`~/.agent-commons/skills/SKILL.md`) for shared-memory operations.
+> Registered in registry.json. Going forward I'll trigger the runtime skill (`~/.agent-commons/skills/agent-commons/SKILL.md`) for shared-memory operations.
 
 If you walked the fallback ladder, mention which tier you ended on and why.
 

@@ -8,7 +8,9 @@
 #
 # This script bootstraps %USERPROFILE%\.agent-commons\ and prints the
 # agent-onboarding message. It does NOT touch any AI agent's home directory —
-# agents join the system on their own by reading skills\SKILL.md.
+# agents join the system on their own by reading ONBOARDING.md (one-time
+# joining flow); afterwards they use skills\agent-commons\SKILL.md as their
+# runtime capability.
 #
 # Idempotent: re-running upgrades the protocol skeleton without touching your data.
 #
@@ -28,8 +30,14 @@ $RepoRawUrl = if ($env:AGENT_COMMONS_REPO) { $env:AGENT_COMMONS_REPO } else { 'h
 # ── Silent bootstrap ───────────────────────────────────────────────
 $null = & {
     # Directory skeleton
+    #   skills\<name>\        agent-loadable capabilities
+    #   skills_data\<name>\   per-skill persistent data
+    #   mcp\<server>\         shared MCP server configs / local implementations
+    #   plugins\<name>\       shared plugins
+    #   tools\<name>\         shared scripts / utilities
     $dirs = @(
-        'skills','identity','rules','toolchain','projects',
+        'skills\agent-commons','skills_data','mcp','plugins','tools',
+        'identity','rules','toolchain','projects',
         'log\daily','log\decisions','log\archive',
         'handoff\inbox','handoff\archive','handoff\shared-state'
     )
@@ -51,9 +59,10 @@ $null = & {
         }
     }
 
-    Download-File "$RepoRawUrl/ONBOARDING.md"        (Join-Path $Central 'ONBOARDING.md')         | Out-Null
-    Download-File "$RepoRawUrl/skills/SKILL.md"      (Join-Path $Central 'skills\SKILL.md')      | Out-Null
-    Download-File "$RepoRawUrl/skills/manifest.json" (Join-Path $Central 'skills\manifest.json') | Out-Null
+    Download-File "$RepoRawUrl/ONBOARDING.md"                      (Join-Path $Central 'ONBOARDING.md')                          | Out-Null
+    Download-File "$RepoRawUrl/CONVENTIONS.md"                     (Join-Path $Central 'CONVENTIONS.md')                         | Out-Null
+    Download-File "$RepoRawUrl/skills/agent-commons/SKILL.md"      (Join-Path $Central 'skills\agent-commons\SKILL.md')      | Out-Null
+    Download-File "$RepoRawUrl/skills/agent-commons/manifest.json" (Join-Path $Central 'skills\agent-commons\manifest.json') | Out-Null
 
     # User-owned templates (only seed if missing)
     function Seed-If-Missing {
@@ -95,7 +104,7 @@ $null = & {
     if (-not (Test-Path $registry)) {
         @"
 {
-  "protocol_version": "1.0",
+  "protocol_version": "2.0",
   "agents": {}
 }
 "@ | Set-Content -Path $registry -Encoding UTF8

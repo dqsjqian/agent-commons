@@ -1,17 +1,20 @@
 ---
 name: agent-commons
-protocol_version: "1.0"
+protocol_version: "2.0"
 description: |
   Agent Commons — runtime capabilities for an AI agent that has already joined
   the local cross-agent shared memory system at ~/.agent-commons/. Provides:
   read shared user identity, rules, and routines; read/update the cross-agent
   current-focus state; check the inbox for messages from other agents; append
   to today's per-agent daily log; send a message to another agent's inbox.
+  Also recommends ~/.agent-commons/skills_data/, mcp/, plugins/, tools/ as
+  shared locations for cross-agent persistent state.
   Triggers on phrases like:
   "read shared identity", "read agent commons rules", "what's the current focus",
   "check my inbox", "log this to agent commons", "hand off to <other-agent>",
+  "where do I save this", "where to put skill data",
   "读共享身份", "读共享规则", "当前焦点", "检查收件箱", "记到共享日志",
-  "交接给 <其他 agent>", any equivalent.
+  "交接给 <其他 agent>", "数据存哪", any equivalent.
   NOTE: this is the RUNTIME skill, not the joining flow. If the agent has not
   yet joined, redirect to ~/.agent-commons/ONBOARDING.md instead.
 ---
@@ -37,10 +40,10 @@ grep -q "\"<your-agent-name>\"" ~/.agent-commons/registry.json && echo registere
 
 ### 2. Is the protocol version compatible?
 
-Read `~/.agent-commons/skills/manifest.json` and compare its `protocol_version` to the version recorded on your registry entry at join time:
+Read `~/.agent-commons/skills/agent-commons/manifest.json` and compare its `protocol_version` to the version recorded on your registry entry at join time:
 
 ```bash
-central_ver=$(grep -E '"protocol_version"' ~/.agent-commons/skills/manifest.json | head -1)
+central_ver=$(grep -E '"protocol_version"' ~/.agent-commons/skills/agent-commons/manifest.json | head -1)
 my_ver=$(grep -A4 "\"<your-agent-name>\"" ~/.agent-commons/registry.json | grep protocol_version)
 ```
 
@@ -55,15 +58,15 @@ If you installed via Tier 2 (copy), verify your snapshot isn't stale:
 
 ```bash
 # Compare central manifest mtime vs your snapshot's
-[ ~/.agent-commons/skills/manifest.json -nt "$SKILLS_ROOT/agent-commons/manifest.json" ] && echo stale || echo fresh
+[ ~/.agent-commons/skills/agent-commons/manifest.json -nt "$SKILLS_ROOT/agent-commons/manifest.json" ] && echo stale || echo fresh
 ```
 
 If **stale**, mirror-resync per ONBOARDING.md Step 7.2:
 
 ```bash
-rsync -a --delete ~/.agent-commons/skills/ "$SKILLS_ROOT/agent-commons/"
+rsync -a --delete ~/.agent-commons/skills/agent-commons/ "$SKILLS_ROOT/agent-commons/"
 # or pure-shell:
-TMP=$(mktemp -d); cp -R ~/.agent-commons/skills/. "$TMP/" && rm -rf "$SKILLS_ROOT/agent-commons" && mv "$TMP" "$SKILLS_ROOT/agent-commons"
+TMP=$(mktemp -d); cp -R ~/.agent-commons/skills/agent-commons/. "$TMP/" && rm -rf "$SKILLS_ROOT/agent-commons" && mv "$TMP" "$SKILLS_ROOT/agent-commons"
 ```
 
 **After resyncing, re-run the trigger self-test from ONBOARDING.md Step 4.B** — schema changes can break the runtime's view of the skill even when the file exists. If trigger now fails, walk down the tier ladder (Step 4.C). Don't keep using a skill the runtime can no longer parse.
@@ -180,6 +183,40 @@ Don't rewrite other fields unless they actually changed (e.g. a new capability).
 
 ---
 
+## Capability 6 — Recommend persistence locations to skills/MCPs/plugins/tools
+
+This is a **passive capability** — it doesn't actively run, but you should remember it whenever you (or a sibling skill you load) are about to write persistent data, install an MCP server, drop a plugin, or stash a CLI tool.
+
+The central directory has a **convention layer** of subdirectories under `~/.agent-commons/`:
+
+| Path | What goes here |
+|---|---|
+| `skills_data/<skill-name>/` | Per-skill persistent data (caches, learned profiles, conversation logs, anything that should survive sessions) |
+| `mcp/<server-name>/` | Shared MCP server configs / local implementations — MCPs that all joined agents can use |
+| `plugins/<plugin-name>/` | Shared plugins (browser/editor/IDE extensions, agent-agnostic) |
+| `tools/<tool-name>/` | Shared CLI scripts / utilities the user may run from any shell |
+
+**When the user asks "where should I save this?" or you have to choose a persistence location, default to one of these instead of inventing a private path elsewhere.** Reasons:
+
+1. The user backs up `~/.agent-commons/` once → all your data goes with them.
+2. Other joined agents can discover and reuse data placed here.
+3. Cross-machine migration via rsync covers everything.
+
+**Privacy split for mixed-sensitivity data:**
+
+```
+~/.agent-commons/skills_data/<skill>/
+├── public/      ← safe to sync everywhere
+├── private/     ← sensitive (recommend .gitignore)
+└── ...
+```
+
+Agent Commons does NOT read or validate anything inside the convention layer — it's entirely owned by the skill/MCP/plugin/tool that put data there. See `~/.agent-commons/CONVENTIONS.md` for the full spec.
+
+**Don't push this convention if it doesn't fit.** If a skill's data fundamentally belongs in OS-managed locations (keychain, `/var`, `~/Library/...`), keep it there. The convention is a default, not a mandate.
+
+---
+
 ## Failure modes
 
 - Some files missing → read what exists, note the rest. Don't block.
@@ -199,7 +236,7 @@ Don't rewrite other fields unless they actually changed (e.g. a new capability).
 
 ## Spec
 
-- Manifest: `~/.agent-commons/skills/manifest.json`
+- Manifest: `~/.agent-commons/skills/agent-commons/manifest.json`
 - Onboarding (one-time): `~/.agent-commons/ONBOARDING.md`
 - Repository: https://github.com/dqsjqian/agent-commons
 - License: MIT

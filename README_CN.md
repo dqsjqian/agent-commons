@@ -6,7 +6,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Status](https://img.shields.io/badge/status-MVP-blue)]()
-[![Protocol](https://img.shields.io/badge/protocol-v1.0-green)]()
+[![Protocol](https://img.shields.io/badge/protocol-v2.0-green)]()
 
 ---
 
@@ -20,20 +20,30 @@
 
 ```
 ~/.agent-commons/                ← 你机器上的中央目录
+│
+│  ─── 协议层（强制）───
+├── ONBOARDING.md                ← 新 agent 一次性入会流程
+├── CONVENTIONS.md               ← 可选的、非规范性约定
 ├── identity/                    ← 你是谁（profile / 作息）
 ├── rules/                       ← 所有 agent 必须遵守的硬规则
 ├── toolchain/                   ← 工具 / 路径 / 配置
 ├── projects/                    ← 你在做什么
 ├── log/daily/                   ← 按 agent 分文件的日志（无写冲突）
 ├── handoff/                     ← 跨 agent 收件箱 + 共享状态
-├── skills/                      ← 协议骨架（本仓库的内容）
-└── registry.json                ← 哪些 agent 加入了
+├── skills/agent-commons/        ← 协议本身的 runtime skill
+├── registry.json                ← 哪些 agent 加入了
+│
+│  ─── 约定层（可选，推荐）───
+├── skills_data/<skill>/         ← 各 skill 自己的持久化数据（一个备份根管所有）
+├── mcp/<server>/                ← 共享 MCP server 配置
+├── plugins/<name>/              ← 共享插件
+└── tools/<name>/                ← 共享 CLI 脚本/工具
 ```
 
 每个加入的 agent 都有一个软链：
 
 ```bash
-~/.<your-agent>/skills/agent-commons → ~/.agent-commons/skills/
+~/.<your-agent>/skills/agent-commons → ~/.agent-commons/skills/agent-commons/
 ```
 
 就这。**没有 daemon。没有服务器。没有 npm install。没有第三方运行时。纯文件系统。**
@@ -72,20 +82,20 @@
 协议显式区分**一次性入会** vs **持续运行能力**：
 
 - **`ONBOARDING.md`**（一次性）：发现自己 runtime 的"用户可扩展 skill 目录"→ 安装（symlink → copy → readonly 自动降级）→ 闭环触发自检证明真的能调 → 在 `registry.json` 登记
-- **`skills/SKILL.md`**（每次按需触发）：读共享身份/规则/当前焦点；查收件箱/发消息；写当日日志；刷新 `last_seen`。这是加入后 agent 一直带着的运行时能力
+- **`skills/agent-commons/SKILL.md`**（每次按需触发）：读共享身份/规则/当前焦点；查收件箱/发消息；写当日日志；刷新 `last_seen`。这是加入后 agent 一直带着的运行时能力
 
 详见：
 - [`ONBOARDING.md`](ONBOARDING.md) —— 一次性入会流程
-- [`skills/SKILL.md`](skills/SKILL.md) —— 加入后的运行时能力
+- [`skills/agent-commons/SKILL.md`](skills/agent-commons/SKILL.md) —— 加入后的运行时能力
 - [`SPEC.md`](SPEC.md) —— 完整协议规范
 - [`CONVENTIONS.md`](CONVENTIONS.md) —— 非规范性的可选约定（如推荐的 skill 数据位置 `~/.agent-commons/skills_data/`）
-- [`skills/manifest.json`](skills/manifest.json) —— 机器可读
+- [`skills/agent-commons/manifest.json`](skills/agent-commons/manifest.json) —— 机器可读
 
 ---
 
 ## 单一真相源 + 自动协议升级
 
-每个加入 agent 的 `~/.<agent>/skills/agent-commons/` 是一条**软链**指回中央 `~/.agent-commons/skills/`。当本项目发布协议升级，你只更新中央目录，**用户机器上每个 agent 下次会话启动就看到新版本**。零推送、零版本检查、零 hash 比对。文件系统语义就这么干净利落。
+每个加入 agent 的 `~/.<agent>/skills/agent-commons/` 是一条**软链**指回中央 `~/.agent-commons/skills/agent-commons/`。当本项目发布协议升级，你只更新中央目录，**用户机器上每个 agent 下次会话启动就看到新版本**。零推送、零版本检查、零 hash 比对。文件系统语义就这么干净利落。
 
 用户自己的内容（`identity/` `rules/` `toolchain/` 等）**从不会被上游覆盖** —— 它们存在于软链外的同级目录，跟协议骨架物理隔离。
 

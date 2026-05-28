@@ -78,6 +78,7 @@
 - [`ONBOARDING.md`](ONBOARDING.md) —— 一次性入会流程
 - [`skills/SKILL.md`](skills/SKILL.md) —— 加入后的运行时能力
 - [`SPEC.md`](SPEC.md) —— 完整协议规范
+- [`CONVENTIONS.md`](CONVENTIONS.md) —— 非规范性的可选约定（如推荐的 skill 数据位置 `~/.agent-commons/skills_data/`）
 - [`skills/manifest.json`](skills/manifest.json) —— 机器可读
 
 ---

@@ -77,6 +77,7 @@ The protocol cleanly separates **one-time joining** from **ongoing capabilities*
 See [`ONBOARDING.md`](ONBOARDING.md) for the joining flow.
 See [`skills/SKILL.md`](skills/SKILL.md) for the runtime capability spec.
 See [`SPEC.md`](SPEC.md) for the full normative specification.
+See [`CONVENTIONS.md`](CONVENTIONS.md) for optional, non-normative conventions (e.g. recommended skill data location at `~/.agent-commons/skills_data/`).
 See [`skills/manifest.json`](skills/manifest.json) for the machine-readable spec.
 
 ---

@@ -183,37 +183,13 @@ Don't rewrite other fields unless they actually changed (e.g. a new capability).
 
 ---
 
-## Capability 6 — Recommend persistence locations to skills/MCPs/plugins/tools
+## Capability 6 — Pointer: where to install / persist things going forward
 
-This is a **passive capability** — it doesn't actively run, but you should remember it whenever you (or a sibling skill you load) are about to write persistent data, install an MCP server, drop a plugin, or stash a CLI tool.
+You already learned this during onboarding (see `~/.agent-commons/ONBOARDING.md` § Step 6.5). It is **not** repeated here in detail — this skill is the runtime, not the joining flow.
 
-The central directory has a **convention layer** of subdirectories under `~/.agent-commons/`:
+In one line: **for any new skill / MCP server / plugin / CLI tool / persistent data you (or a sibling skill) install or write going forward, default to `~/.agent-commons/{skills,mcp,plugins,tools,skills_data}/<name>/`**, not a private path elsewhere.
 
-| Path | What goes here |
-|---|---|
-| `skills_data/<skill-name>/` | Per-skill persistent data (caches, learned profiles, conversation logs, anything that should survive sessions) |
-| `mcp/<server-name>/` | Shared MCP server configs / local implementations — MCPs that all joined agents can use |
-| `plugins/<plugin-name>/` | Shared plugins (browser/editor/IDE extensions, agent-agnostic) |
-| `tools/<tool-name>/` | Shared CLI scripts / utilities the user may run from any shell |
-
-**When the user asks "where should I save this?" or you have to choose a persistence location, default to one of these instead of inventing a private path elsewhere.** Reasons:
-
-1. The user backs up `~/.agent-commons/` once → all your data goes with them.
-2. Other joined agents can discover and reuse data placed here.
-3. Cross-machine migration via rsync covers everything.
-
-**Privacy split for mixed-sensitivity data:**
-
-```
-~/.agent-commons/skills_data/<skill>/
-├── public/      ← safe to sync everywhere
-├── private/     ← sensitive (recommend .gitignore)
-└── ...
-```
-
-Agent Commons does NOT read or validate anything inside the convention layer — it's entirely owned by the skill/MCP/plugin/tool that put data there. See `~/.agent-commons/CONVENTIONS.md` for the full spec.
-
-**Don't push this convention if it doesn't fit.** If a skill's data fundamentally belongs in OS-managed locations (keychain, `/var`, `~/Library/...`), keep it there. The convention is a default, not a mandate.
+If you need the full rationale, the install/use guidance, or the privacy-layering recipe, **re-read ONBOARDING.md § Step 6.5** — that is the canonical place.
 
 ---
 

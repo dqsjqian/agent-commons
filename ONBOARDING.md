@@ -266,28 +266,54 @@ The only times you SHOULD come back to this onboarding file:
 
 ---
 
-## Step 6.5 — Where to put your stuff going forward (recommended convention)
+## Step 6.5 — Where to install / put / use things going forward (recommended convention)
 
-Now that you're joined, the central directory is your home base. Beyond the protocol files (identity, rules, handoff, log), it has **convention-layer subdirectories** that Agent Commons does NOT read or interpret, but that give the user a single backup root for everything you put there.
+> This is a **lifestyle change**, not a one-time step. From now on, treat `~/.agent-commons/` as your default home for **anything** that should be:
+>
+> - Shared with other joined agents on this machine
+> - Backed up as a unit when the user moves machines
+> - Visible to the user as part of their AI-state inventory
 
-**You are strongly encouraged to use these locations for any persistent state** instead of inventing your own private paths:
+The central directory has a **convention layer** of subdirectories that Agent Commons does NOT read or validate. They're there for skills, MCP servers, plugins, and shared tools to use voluntarily — and getting everyone to use the same locations is what gives the user a single, sane backup story.
 
-| Need | Recommended location | When |
-|---|---|---|
-| **Per-skill persistent data** (caches, learned profiles, conversation logs, anything that should survive sessions) | `~/.agent-commons/skills_data/<skill-name>/` | Whenever a skill needs to write data |
-| **Shared MCP server configs / local implementations** | `~/.agent-commons/mcp/<server-name>/` | When you install an MCP that all joined agents should be able to use |
-| **Shared plugins** (browser/editor/IDE extensions) | `~/.agent-commons/plugins/<plugin-name>/` | When the plugin is agent-agnostic |
-| **Shared CLI scripts / tools** (helpers the user can run from any shell) | `~/.agent-commons/tools/<tool-name>/` | Cross-agent utilities |
+### The four shared layers
 
-**Why this matters:**
+| Layer | Path | What goes here | Who can use it |
+|---|---|---|---|
+| **Shared skills** | `~/.agent-commons/skills/<skill-name>/` | Skill packages (SKILL.md + scripts + manifest) that the user wants **available to every joined agent**, not just one | **Any joined agent can load and trigger any skill in this directory.** This is the cross-agent skill bus. |
+| **Skill data** | `~/.agent-commons/skills_data/<skill-name>/` | Per-skill persistent data (caches, learned profiles, conversation logs, anything that should survive sessions) | The owning skill writes; others MAY read if the skill documents that |
+| **Shared MCP servers** | `~/.agent-commons/mcp/<server-name>/` | MCP server configs or local implementations the user wants **shared across agents** | Any joined agent can wire up to these MCP servers |
+| **Shared plugins** | `~/.agent-commons/plugins/<plugin-name>/` | Plugins (browser/editor/IDE extensions, agent-agnostic) | Any agent or tool that knows how to load this plugin format |
+| **Shared CLI tools** | `~/.agent-commons/tools/<tool-name>/` | Scripts / utilities the user may run from any shell session | Anyone — agent or human |
 
-- The user backs up `~/.agent-commons/` once → everything moves with them.
-- New agents joining the protocol see the same shared data without each one reinventing storage.
-- Data written outside this tree is **invisible** to other joined agents and won't follow the user across machines.
+### Three rules going forward (memorize these)
 
-**Privacy layering for mixed-sensitivity data:**
+1. **When installing a NEW skill / MCP / plugin / tool**: install it under the corresponding convention-layer directory above. Don't drop it under `~/.<some-agent>/` unless that agent's runtime *requires* a private location (rare). Prefer the shared, agent-neutral location.
 
-If a skill writes a mix of shareable + sensitive data, split into clearly named subdirectories:
+2. **When USING an existing skill / MCP / plugin / tool**: look in `~/.agent-commons/{skills,mcp,plugins,tools}/` first. If it's there, use that copy. Don't reinstall a private duplicate. **Read from the central location, not from your own home.**
+
+3. **When WRITING persistent data**: route it through `~/.agent-commons/skills_data/<your-skill-name>/` — split into `public/` and `private/` subdirectories if the data has mixed sensitivity (see Privacy layering below).
+
+### Concrete examples
+
+| The user said... | What you should do |
+|---|---|
+| "Install the wechat-publisher skill" | `git clone` / `cp -R` it into `~/.agent-commons/skills/wechat-publisher/`, then symlink/copy from there into your runtime — same fallback ladder as in Step 3 |
+| "Set up the Tencent Lexiang MCP" | Place the MCP config / launcher in `~/.agent-commons/mcp/lexiang/`, point your runtime's MCP config at that path |
+| "Save my conversation embeddings" | `~/.agent-commons/skills_data/<your-skill>/embeddings/` (or `private/embeddings/` if sensitive) |
+| "Use my soul-archive data" | Read from `~/.agent-commons/skills_data/soul-archive/` if it's there; otherwise fall back to its standalone location |
+| "Add a `claw-state` helper script" | Drop it in `~/.agent-commons/tools/claw-state/`, tell the user to add that path to their `$PATH` |
+
+### Why this matters
+
+- **The user backs up `~/.agent-commons/` once → everything moves with them.** All shared skills, MCPs, plugins, tools, and skill data come along on the same rsync.
+- **New agents joining the protocol see the same shared data and capabilities** without each one reinventing storage.
+- **Data written outside this tree is invisible to other joined agents** and won't follow the user across machines.
+- **A user who installs a useful skill once** wants it available to every agent they talk to, not just the one that did the install.
+
+### Privacy layering for mixed-sensitivity data
+
+If a skill writes a mix of shareable + sensitive data, split into clearly named subdirectories so the user can apply different sync policies:
 
 ```
 ~/.agent-commons/skills_data/<skill-name>/
@@ -298,11 +324,20 @@ If a skill writes a mix of shareable + sensitive data, split into clearly named 
 
 See [`CONVENTIONS.md`](CONVENTIONS.md) (also at `~/.agent-commons/CONVENTIONS.md`) for the full convention spec.
 
-**This is non-normative** — the protocol still works if you ignore this section. But adopting it makes the user's life dramatically easier.
+### When NOT to use these locations
+
+The convention is a default, not a mandate. Keep data outside `~/.agent-commons/` when:
+
+- The data fundamentally belongs in OS-managed locations (keychain, `/var`, `~/Library/Application Support/`, etc.)
+- The data should be wiped on logout / shared across users / encrypted at rest by an OS service
+- The skill / runtime *requires* a specific path it doesn't control
+
+**This convention is non-normative** — the protocol still works if you ignore this whole step. But adopting it makes the user's life dramatically easier and lets multiple agents collaborate over a shared toolkit.
 
 ---
 
 ## Step 7 — Update protocol (how to stay current as the central skill evolves)
+
 
 The central directory `~/.agent-commons/skills/agent-commons/` is the **single source of truth**. As the protocol evolves, files there will be **added, modified, removed, or renamed**. Your local install must stay in sync, or it will silently drift.
 
